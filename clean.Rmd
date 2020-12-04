@@ -1,0 +1,480 @@
+---
+title: "clean"
+author: "pritom"
+date: "10/5/2020"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F,warning = F)
+library(tidyverse)
+library(numbers)
+library(pander)
+clean=read_csv("clean.csv")
+```
+
+## R Markdown
+```{r}
+names(clean)=clean %>% names() %>% tolower()
+
+for(i in 1:ncol(clean)){
+  if( sum(str_detect(clean[[i]],c("beginner","below average","average","above average","expert"))) %>%sum() )
+    clean[[i]]=clean[[i]] %>% factor(c("beginner","below average","average","above average","expert"),c("poor","poor","average","good","good"))
+
+  else if( sum(str_detect(clean[[i]],c("^no","^yes"))) %>%sum() )
+    clean[[i]]=clean[[i]] %>% factor(c("no","yes"))
+
+  else if( sum(str_detect(clean[[i]],c("very poor","poor","fair","good","very good"))) %>%sum() )
+     clean[[i]]=clean[[i]] %>% factor(c("very poor","poor","fair","good","very good"),c("poor","poor","fair","good","good"))
+  
+  else if( sum(str_detect(clean[[i]],c("most days","at least 2/3 days a week","at least once a week","at least 2/3 times a month","at least once a month","rarely","occasionally","never$"))) %>%sum())
+    clean[[i]]=clean[[i]] %>%factor(c("most days","at least 2/3 days a week","at least once a week","at least 2/3 times a month","at least once a month","rarely","occasionally","never"),c("most days","2/3 days a week","2/3 times a month","2/3 times a month","2/3 times a month","rarely","rarely","never"))
+}
+```
+## Data collection methods.
+
+We collected 200 data with direct interview process. So the accuracy of the data is highly significant. The questioner consist of 4 main section with 14 variables among which 3 was likert scale.
+
+First likert scale was consist of 9 question to determine the participants superiority on internet using. Second likert scale was consist of 5 questions to determine the participants opinion on library facilities and the the third likert scale was consist of 11 questions to determine the information literacy skills of the participants. All of those was a 5 points scale (1,2,3,4,5) but for analysis purpose we have drop down the result to a 3 points scale(1:poor,2:average,3:good). The alpha value for the likert scale was (respectively) which implies that the likert scales were significantly valid.
+
+## Who are taking part in the study?
+
+Table for showing the frequency of participants who took part in this study according to gender.
+```{r}
+clean %>% count(gender) %>% transmute(gender,count=n,percentage=round(100*n/sum(n)) %>% paste0("%")) %>% pander()
+```
+
+Graphical representation of participants who took part in this study according to department.
+```{r fig.height=8, fig.width=6}
+ggplot()+geom_bar(data=filter(clean,gender=="male") %>% count(department) %>% mutate(n=-n),aes(n,department,fill="Male"),stat = "identity")+ geom_bar(data=filter(clean,gender=="female") %>% count(department) ,aes(n,department,fill="Female"), "identity")+scale_y_discrete(limits=count(clean,department,sort = T) %>% pull(1))+scale_x_continuous(breaks =-7:7)+scale_fill_brewer("gender",type="qual",palette = 3)+geom_text(data=count(clean,department,sort = T) %>% transmute(department,p=round(100*n/sum(n)) %>% paste0("%")),aes(0,department,label=p ),col="white",size=3,nudge_x = -.2)+theme(legend.position = "bottom")
+```
+
+So from the above graph and table we can say that the sample is pretty representative of the University of Dhaka's students. So in our study when we will talk about the population it would refer to the students of the University of Dhaka and the word "students" and "participants" will use here interchangeably.
+
+
+## Do you use computer?
+
+Table for showing the distribution of computer users.
+```{r}
+tab=count(clean,do_you_use_computer) %>% transmute(do_you_use_computer,count=n,pencentage=round(100*n/200,1) %>% paste0("%") )
+tab %>% mutate(do_you_use_computer=do_you_use_computer %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Computer use"=do_you_use_computer) %>% pander()
+```
+
+From this table we can see that 90.5% of total participants use a computer. Now we will test the hypothesis that if the percentage of computer users is greater than 80% or not.
+
+H0: Percentage of computer users in less than or equal to 80%.
+H1: More than 80% of university students use computer.
+
+software output:
+```{r}
+binom.test(181,200,p=.8,alternative = "greater",conf.level = .99)
+```
+
+Decision: As p-value (4.503e-05) is less than .01 so we may reject null hypothesis at 99% level of significance.
+Comment: So more than 80% of university students now a days use computer. We have got a 90% estimate of computer use by the university students with 99% confidence interval of 83.9% to 95.1%.
+
+## Computer Proficency Level who use computer.
+
+Table for showing the distribution of computer proficiency of the participants according to computer users.
+```{r}
+tab=filter(clean,do_you_use_computer=="yes") %>% count(computer_proficiency_level) %>% transmute(computer_proficiency_level,count=n,pencentage=round(100*n/181,1) %>% paste0("%"))
+tab %>% mutate(computer_proficiency_level=computer_proficiency_level %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Computer profeciency"=computer_proficiency_level) %>%  pander(caption="Use computer")
+```
+```{r}
+tab=filter(clean,do_you_use_computer=="no") %>% count(computer_proficiency_level) %>% transmute(computer_proficiency_level,count=n,pencentage=round(100*n/19,1) %>% paste0("%"))
+tab %>% mutate(computer_proficiency_level=computer_proficiency_level %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Computer profeciency"=computer_proficiency_level) %>%  pander(caption="Do not use computer")
+```
+
+Graphical representation of the above table.
+```{r}
+clean %>% ggplot(aes(computer_proficiency_level,fill=computer_proficiency_level))+geom_bar()+facet_wrap("do_you_use_computer")+scale_fill_brewer("Computer profeciency",type="qual",palette = 7)+theme_bw()+scale_x_discrete("")+theme(legend.position = "top")
+```
+
+From this above table we can see that 8.3% of participants who use computer, reported that their proficiency level is poor. On the other 94.7% of participants who don't use computer, reported that their proficiency level is poor. So we can roughly say that computer proficiency is not that good among the participants who don't use computer. Now we will check the significance of our assumption.
+
+H0: "Computer use" doesn't have any effect on the computer proficiency level.
+H1: "Computer use" has a significant effect on the computer proficiency level.
+
+software output:
+```{r}
+prop.test(x=c(18,15),n=c(19,181),alternative = "greater",conf.level = .99)
+```
+
+Decision: As p-value (2.2e-16) is way less than .01 so we can reject null hypothesis at 99% level of significance.
+Comment: So, If a student use computer then it is more likely that his computer proficiency level is average or good. We have a estimate of 91.7% students who use computer have a "good" or "average" level of proficiency in computer.
+
+## Do you have internet access?
+
+Table for showing the distribution of the participants having internet access.
+```{r}
+tab=count(clean,do_you_have_access_to_internet) %>% transmute(do_you_have_access_to_internet,count=n,pencentage=round(100*n/200,1) %>% paste0("%"))
+tab %>% mutate(do_you_have_access_to_internet=do_you_have_access_to_internet %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Internet access"=do_you_have_access_to_internet) %>%  pander()
+```
+
+From the table we can see that proportion of internet users is highly dominating over the group who don't use internet. Now we need to conduct a hypothesis test to check the significance of our assumption.
+
+H0: 90% of university students now a days have internet access.
+H1: More than 90% of university students now a days have internet access.
+
+software output.
+```{r}
+binom.test(196,200,p=.9,alternative = "greater",conf.level = .99)
+```
+
+Decision: As p-value (8.416e-06) is way less than .01 so we may reject null hypothesis at 99% level of significance.
+Comment: So, majority (98% estimated) of the university's student have internet access now a days.
+
+From then we will conduct our study on "internet related topic" with this 196 participants who have access to the internet.
+
+## How frequent do they use internet who have internet access.
+
+Table for showing the distribution of the students' internet using frequency of them who have access to internet.
+```{r}
+tab=filter(clean,do_you_have_access_to_internet=="yes") %>% count(internet_using_frequency=internet_using_frequency %>% fct_collapse(regularly=c("2/3 time a day","at least once a day"))) %>% transmute(internet_using_frequency,count=n,percentage=round(100*n/196,1) %>% paste0("%"))
+tab %>% mutate(internet_using_frequency=internet_using_frequency %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Frequency"=internet_using_frequency) %>%  pander(caption="Internet access=yes")
+```
+
+Here from this table we can see that most of the participants who have access to the internet use it regularly. Here regular users are defined as them who use internet once or several times in a day. Now we will check the hypothesis that if the percentage of regular internet user who have internet access exceeds 90% or not.
+
+H0: The percentage of participants who have access to the internet use it regularly is less than or equal to 90%.
+H1: More than 90% of participants who have access to the internet use it regularly .
+
+software output:
+```{r}
+binom.test(192,196,p=.9,alternative = "greater",conf.level = .99)
+```
+
+Decision: As p-value (1.187e-05) is less than .01 so we may reject null hypothesis at 99% level of significance. 
+Comment: More than 90% of participants who have access to the internet, use internet regularly. Here we have a estimate of 97.96% of university students who have access to the internet use it regularly with 99% confidence interval of 93.71% to 99.65%.
+
+Overall we can say that among all university students, estimated 96% (0.9796*0.98=.96) of students use internet regularly (everyday at least one or several times).
+
+## Internet profeciency level of the participants have internet access.
+
+Table with the distribution of participants' internet proficiency level who have internet access.
+```{r}
+tab=filter(clean,do_you_have_access_to_internet=="yes") %>% count(internet_lkt) %>% transmute(internet_lkt,count=n,percentage=round(100*n/196,1) %>% paste0("%"))
+tab %>% mutate(internet_lkt=internet_lkt %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Internet profeciency"=internet_lkt) %>%  pander(caption="Internet access=yes")
+```
+
+From this table we can see that a significant number of participants have a good internet proficiency level. Now we need to test a hypothesis that if more than 90% modern day's internet users among the university students have a good level of internet proficiency.
+
+H0: Internet proficiency level is good for 90% of internet users who have access to the internet.
+H1: Internet proficiency level is good for more than 90% of internet users who have access to the internet.
+
+software output:
+```{r}
+binom.test(193,196,p=.9,alternative = "greater",conf.level = .99)
+```
+
+Decision: As p-value (2.101e-06) is less than .01 so we may reject null hypothesis at 99% level of significance.
+Comment: So more 90% of the individuals who have access to the internet have a good internet proficiency skills given that the individual has an access to the internet. So on average 96.5% (.98*.9847) of university students have a good internet proficiency skills. 
+
+## How frequent you go to library?
+
+Table showing the frequency of library use by the participants.
+```{r}
+tab=count(clean,library_use_frequency) %>% transmute(library_use_frequency,count=n,percentage=round(100*n/200,1) %>% paste0("%"))
+tab %>% mutate(library_use_frequency=library_use_frequency %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Frequency"=library_use_frequency) %>%  pander()
+```
+
+To avoid the ambiguity and for more tidy format we marge the participants labels as regular users who visits library several times (regular reader: most days, 2/3 days a week,2/3 times a month) in a month and also excluded the participants who use to go in library never.
+```{r}
+tab=filter(clean,library_use_frequency!="never") %>% count(library_use_frequency=library_use_frequency %>% fct_collapse(regular=c("most days","2/3 days a week","2/3 times a month"))) %>% transmute(library_use_frequency,count=n,percentage=round(100*n/192,1) %>% paste0("%"))
+tab %>% mutate(library_use_frequency=library_use_frequency %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Frequency"=library_use_frequency) %>%  pander()
+```
+
+From this table we can see that 68.8% of participants were regular with library usage. Now we test a hypothesis to check the significance level of our assumptions and we will use these 192 individuals for rest of the "library uses" related analysis.
+
+H0: 50% of students use library regularly.
+H1: More than 50% of students use library regularly.
+
+software output:
+```{r}
+binom.test(132,192,alternative = "greater",conf.level = .99)
+```
+Decision: As p-value is (1.091e-07), which is less than .01 so we may reject null hypothesis at 99% level of significance.
+Comment: So we can say that the tendency of going to library is most frequent in the university students.
+
+## What are the regular library users reading?
+
+Table for showing the distribution of what types of materials are read by the participants according to regular vs less frequent library users.
+```{r}
+tab=filter(clean,!library_use_frequency %in% c("rarely","never")) %>% count(reading_resources_in_library,sort = T) %>% transmute(reading_resources_in_library,count=n,percentage=round(100*n/132,1) %>% paste0("%"))
+tab %>% mutate(reading_resources_in_library=reading_resources_in_library %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Resources"=reading_resources_in_library) %>%  pander(caption="Frequent users")
+```
+```{r}
+tab=filter(clean,library_use_frequency %in% c("rarely")) %>% count(reading_resources_in_library,sort = T) %>% transmute(reading_resources_in_library,count=n,percentage=round(100*n/60,1) %>% paste0("%"))
+tab %>% mutate(reading_resources_in_library=reading_resources_in_library %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Resources"=reading_resources_in_library) %>%  pander(caption="Less frequent users")
+```
+
+A graphical representation of above data.
+```{r}
+mutate(clean,library_use_frequency=library_use_frequency %>% fct_collapse(regular=c("most days","2/3 days a week","2/3 times a month")))%>% filter(library_use_frequency!="never") %>% ggplot(aes(y=reading_resources_in_library,fill=reading_resources_in_library))+geom_bar()+facet_grid(rows = vars(library_use_frequency))+scale_fill_brewer("Resources",type = "qual",palette = 3)+ylab("")+theme(legend.position = "none")
+```
+
+Though all types of material are read by the participants in the library like newspaper, online resources,printed books or reference materials, printed books is most popular among them indifferent of the frequent library users vs less frequent library users. In both group 61.4% and 53.3% of users read printed books respectively. Now we will check if this who percentage level are significantly different or not.
+
+H0: Same proportion of the participants from frequent library users' group vs less frequent library users' group read printed books.
+H1: Proportion of the participants who read printed books significantly varies between frequent library users' group to less frequent library users' group.
+
+software output:
+```{r}
+prop.test(x=c(81,32),n=c(132,60))
+```
+
+Decision: Since the p-value is (0.3735) which is greater than .05 we can not reject null hypothesis.
+Comment: Indifferent of the frequent vs less frequent users group printed book is the most popular materials among the university students.
+
+## Library facilities ratting by regular library users.
+
+Table for showing the distribution of library facilities ratted by the frequent and less frequent library users.
+```{r}
+tab=filter(clean,!library_use_frequency %in% c("rarely","never")) %>% count(library_facilities_lkt,sort = T) %>% transmute(library_facilities_lkt,count=n,percentage=round(100*n/132,1) %>% paste0("%"))
+tab %>% mutate(library_facilities_lkt=library_facilities_lkt %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Facilities"=library_facilities_lkt) %>%  pander(caption="Frequent users")
+```
+```{r}
+tab=filter(clean,library_use_frequency == "rarely") %>% count(library_facilities_lkt,sort = T) %>% transmute(library_facilities_lkt,count=n,percentage=round(100*n/60,1) %>% paste0("%"))
+tab %>% mutate(library_facilities_lkt=library_facilities_lkt %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Facilities"=library_facilities_lkt) %>%  pander(caption="Less frequent users")
+```
+
+
+Graphical representations of above table.
+```{r}
+mutate(clean,library_use_frequency=library_use_frequency %>% fct_collapse(regular=c("most days","2/3 days a week","2/3 times a month")))%>% filter(library_use_frequency!="never") %>% ggplot(aes(y=library_facilities_lkt,fill=library_facilities_lkt))+geom_bar()+facet_grid(rows = vars(library_use_frequency))+scale_fill_brewer("Library facilities",type="qual",palette = 3)+ylab("Library facilities")+theme(legend.position = "none")
+```
+
+From the above data we can see that participants from both of the groups (frequent library users vs less frequent library users) have a dominated opinion that library facilities are good. However 99.2% participants from the cohort group of more frequent library users ratted that library facilities are good. On the other hand 76.7% participants from the cohort group of less frequent of library users ratted that library facilities are good.
+
+Now we check the hypothesis that if those percentage are significantly differ.
+
+H0: Same proportion of the participants from frequent library users' group and less frequent library users' group voted that library facilities is good.
+H1: Proportion of the participants who voted that library facilities are good, is greater to the frequent library users' group than the less frequent library users' group.
+
+```{r}
+prop.test(x=c(131,46),n=c(132,60),alternative = "greater")
+```
+
+Decision: Since p-value (1.587e-07) is less than .01 we may reject null hypothesis at 99% level of significance.
+Comment: So, estimated 99.2% students (with 95% confidence interval 95.85% to 99.98%) who go to library regularly (several times in a month) think that library facilities is good. On the other hand, estimated 76.6% students (with 95% confidence interval 63.9% to 86.6%) who go to library less frequently think that library facilities is good.
+
+So, roughly we can say that if a student goes to library regularly it is more likely to marked the library facilities as good by the individual.
+
+
+## Distribution about fibrary facilities.
+
+Table for showing the distributions of what is the opinion of the overall community about the library facilities.
+```{r}
+tab=count(clean,library_facilities_lkt,sort = T) %>% transmute(library_facilities_lkt,count=n,percentage=round(100*n/200,1) %>% paste0("%"))
+tab %>% mutate(library_facilities_lkt=library_facilities_lkt %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Facilities"=library_facilities_lkt) %>%  pander()
+```
+
+This table shows that 90% of the participants marked that library facilities is good. Now we test a hypothesis to ensure the significance level.
+
+H0: The percentage of students marked the library facilities as "good" is more less than or equal to 80%.
+H1: The percentage of students marked the library facilities as "good" is more more than 80%.
+
+software output:
+```{r}
+binom.test(181,200,conf.level = .99,alternative = "greater")
+```
+
+Decision: As, p-value is less than .01 we may reject null hypothesis at at 99% confidence level.
+Comment: More than 80% of the university students marked that library facilities is good. To measure library facilities we used a likert scale. So we can say with a greater confidence that library facilities are sufficient enough for more than 80% (estimated 90.5% with confidence interval 83.9% to 95.1%) of university students.
+
+## Frequency of library use by the individuals who marked library facilities as good.
+
+Table for showing the frequency of library use after grouping the individuals who marked library facilities as good vs who didn't.
+```{r}
+tab= filter(clean,library_facilities_lkt=="good") %>% mutate(library_use_frequency=library_use_frequency %>% fct_collapse(regular=c("most days","2/3 days a week","2/3 times a month")) )%>% count(library_use_frequency) %>% transmute(library_use_frequency,count=n,percentage=round(100*n/181,1) %>% paste0("%"))
+tab %>% mutate(library_use_frequency=library_use_frequency %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Facilities"=library_use_frequency) %>%  pander(caption="Library Facilities: good")
+```
+```{r}
+tab= filter(clean,library_facilities_lkt!="good") %>% mutate(library_use_frequency=library_use_frequency %>% fct_collapse(regular=c("most days","2/3 days a week","2/3 times a month")) )%>% count(library_use_frequency) %>% transmute(library_use_frequency,count=n,percentage=round(100*n/19,1) %>% paste0("%"))
+tab %>% mutate(library_use_frequency=library_use_frequency %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Facilities"=library_use_frequency) %>%  pander(caption="Library Facilities: moderate,poor")
+```
+
+Those table provide the evidence that regularity is more likely in the group marked library facilities as good. On the other hand different scenario occur with the another group. We need to conduct a hypothesis testing to check that how significant does the evidence is.
+
+H0: Being regular in the library is equal likely between the group marked library facilities as good vs marked library facilities as moderate or poor.
+H1: Being regular in the library is more likely to the group marked library facilities as good than the group marked library facilities as moderate or poor.
+
+Software output:
+```{r}
+prop.test(c(131,1),c(181,19),conf.level = .99)
+```
+
+Decision: As, p-value is less than .01 we may reject null hypothesis at at 99% confidence level.
+Comment: So, we can say that if an individual think that library facilities are good then it would be more likely that he would be regular to the library. So an initiative may be accomplished to increase the facilities of the library to attract more regular readers.
+
+
+## Information literacy skills.
+
+Table for showing the distribution of internet literacy skills.
+```{r}
+tab=count(clean ,information_literacy_skills_lkt) %>% transmute(information_literacy_skills_lkt,count=n,pencentage= round(100*n/200,1) %>% paste0("%")) 
+tab %>% mutate(information_literacy_skills_lkt=information_literacy_skills_lkt %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>% rename("Information literacy"=information_literacy_skills_lkt) %>%  pander()
+```
+
+An estimated of 93% of participants have scored good at information literacy skills. Now we test a hypothesis to check how much supportive is this statistic to our assumption about overall population.
+
+H0: Less than or equal to 80% of students would score good at information literacy skills. 
+H1: More than 80% of students would score good at information literacy skills.
+
+software output:
+```{r}
+binom.test(186,200,p=.8,alternative = "greater",conf.level = .99)
+```
+
+Decision: As, p-value is less than .01 we may reject null hypothesis at at 99% confidence level.
+Comment: So significantly more than 80% of students of student have a good skills at information literacy skills.
+
+## Checking for any evidency of dependency on gender in multivariate level with the variables Computer proficiency, Information literacy skills and Internet proficiency skills.
+
+Table with partial frequencies after fixing the skills (Computer proficiency, Information literacy skills and Internet proficiency skills) and skill's levels (good, average, poor).
+```{r}
+tab=select(clean,gender,computer_proficiency_level,internet_lkt,information_literacy_skills_lkt) %>% gather(qualification,q_level,-gender) %>%mutate(q_level= q_level %>% factor(c("good","average","fair","poor"),c("good","average","average","poor"))) %>%group_by(qualification,q_level) 
+v=tab %>%tally() %>% pull(3) %>% rep(each=2)%>% as.vector()
+v=v[-15]
+tab=tab%>% count(gender)
+tab$percentage= round(100*tab$n/v,1)
+tab%>% count(gender)
+ci=list()
+for(i in 1:17 ){
+c=binom.test(tab$n[i],v[i],conf.level = .95)
+ci[[i]]=c$conf.int %>% as.vector()
+}
+ci=do.call(rbind,ci)
+ci=data.frame(round(ci*100,1))
+names(ci)=c("95% lower CI","95% upper CI")
+tab1=cbind(tab,ci)
+tab1 %>% mutate(qualification=qualification %>% factor(c("computer_proficiency_level","information_literacy_skills_lkt","internet_lkt"),c("computer proficiency level","Information literacy skills","Internet proficiency skills"))) %>% pander()
+```
+
+A graphical representation of the above table.
+```{r,fig.width = 12,fig.height = 3}
+tab=tab1 %>% filter(qualification=="computer_proficiency_level") 
+tab%>% ggplot(aes(y=gender,x=percentage,label=tab[[5]] %>% paste0("%") ))+facet_grid(~q_level)+
+  geom_vline(xintercept = 50,size=2,alpha=.25,col="red")+geom_vline(xintercept = 50,col="white",size=.7)+
+geom_segment(aes(y=gender,yend=gender,x=0,xend=percentage), col="#f0a500",lty=2 )+
+geom_segment(aes_(y=names(tab)[3] %>% as.name(),yend=names(tab)[3] %>% as.name(),x=names(tab)[6] %>% as.name(),xend=names(tab)[7] %>% as.name()),size=1,col="#cf7500",alpha=.8)+geom_point(size=1.3)+ylab("")+xlab("")+ggtitle("Computer profeciency level")+geom_text(col="black",nudge_y =.25)
+```
+
+```{r ,fig.width = 12,fig.height = 3}
+tab=tab1 %>% filter(qualification=="information_literacy_skills_lkt") 
+tab%>% ggplot(aes(y=gender,x=percentage,label=tab[[5]] %>% paste0("%") ))+facet_grid(~q_level)+
+  geom_vline(xintercept = 50,size=2,alpha=.25,col="red")+geom_vline(xintercept = 50,col="white",size=.7)+
+geom_segment(aes(y=gender,yend=gender,x=0,xend=percentage), col="#f0a500",lty=2 )+
+geom_segment(aes_(y=names(tab)[3] %>% as.name(),yend=names(tab)[3] %>% as.name(),x=names(tab)[6] %>% as.name(),xend=names(tab)[7] %>% as.name()),size=1,col="#cf7500",alpha=.8)+geom_point(size=1.3)+ylab("")+xlab("")+ggtitle("Information literacy skills")+geom_text(col="black",nudge_y =.25)
+```
+
+```{r ,fig.width = 12,fig.height = 3}
+tab=tab1 %>% filter(qualification=="internet_lkt") 
+tab%>% ggplot(aes(y=gender,x=percentage,label=tab[[5]] %>% paste0("%") ))+facet_grid(~q_level)+
+  geom_vline(xintercept = 50,size=2,alpha=.25,col="red")+geom_vline(xintercept = 50,col="white",size=.7)+
+geom_segment(aes(y=gender,yend=gender,x=0,xend=percentage), col="#f0a500",lty=2 )+
+geom_segment(aes_(y=names(tab)[3] %>% as.name(),yend=names(tab)[3] %>% as.name(),x=names(tab)[6] %>% as.name(),xend=names(tab)[7] %>% as.name()),size=1,col="#cf7500",alpha=.8)+geom_point(size=1.3)+ylab("")+ggtitle("Internet using skills")+
+geom_text(col="black",nudge_y =.25)
+```
+
+H0: Computer proficiency level is independent of gender.
+H0: Information literacy skills level is independent of gender.
+H0: Internet using skills level is independent of gender.
+
+Decision: Since all the 95% confidence interval (golden thick line) touch the red line so we can not reject any of these three null hypothesis.
+Comment: So for any of the three skills (Computer proficiency,Information literacy,Internet using) male or female participants equally likely at any level (good, average, poor) of any skills.
+
+For example, considering the group who have a good skill at computer proficiency level, then this group will consist of 50% male and 50% female.
+Again if we consider the group who have a good skill at information literacy, then this group will consist of 50% male and 50% female.
+And if again we consider the group who have a good skill at internet using, then this group will consist of 50% male and 50% female.
+
+So, we cam say that indifferent of being male or female anyone can achieve any one of those skills with a uniform likelihood. So archiving any of those skills in not a little bit more favorable to the male group than the female group and vice versa.
+
+
+## Distribution of individuals who are good at multiple things.
+
+Table for showing the frequency of the individuals having multiple skills.
+```{r}
+tab=select(clean,computer_proficiency_level,internet_lkt,information_literacy_skills_lkt)%>% mutate(internet_lkt=internet_lkt%>%fct_collapse(average="fair") )%>% t() %>% as.data.frame()
+tab=tab %>% map_dbl(~str_count(.,"good") %>% sum()) %>% as.vector() %>% table()
+names(tab)=c("Good at no skill","Good at 1 skill","Good at 2 skills","Good at all 3 skills")
+tab=as.data.frame(tab)
+tab=tab %>% transmute(option=Var1,count=Freq,percentage=round(100*tab$Freq/200,1) %>% paste0("%") )
+tab %>% mutate(option=option %>% as.character()) %>% rbind(c("Total",sum(tab$count),"100%","","" )) %>%  pander()
+```
+
+A graphical representation of each individuals marking their skill or a more comprehensive representation of the above table.
+```{r,fig.width = 10,fig.height = 2}
+tab=select(clean,id,gender,computer_proficiency_level,internet_lkt,information_literacy_skills_lkt) %>% gather(qualification,q_level,-c("gender","id")) %>% mutate(q_level= q_level %>% factor(c("good","average","fair","poor"),c("good","average","average","poor"))) %>% arrange(gender)
+
+ggplot(tab,aes(id,qualification,col=q_level,group=id))+geom_line()+scale_color_brewer("Level",type = "qual")+ geom_point()+ scale_y_discrete(limits=c("computer_proficiency_level","internet_lkt","information_literacy_skills_lkt"),labels=c("computer","internet","information"))+theme(legend.position = "bottom")
+```
+
+Here 187 participants(128+59) have at least two skills at which they are good at. Now we will test a hypothesis to draw a valid assumption about population.
+
+H0: Percentage of students good at two or more than two skills is equal to 80%.
+H1: Percentage of students good at two or more than two skills is greater than 80%.
+
+software output:
+```{r}
+binom.test(187,200,alternative = "greater",conf.level = .99)
+```
+
+Decision: As, p-value is less than .01 we may reject null hypothesis at at 99% confidence level.
+Comment: More than 80% of university students are good at any of two skills out of computer proficiency level, information literacy, internet using skills. So any type of digital features may be added seamlessly by the university administration as most of the students are already capable to cope up with it.
+
+## Measure of association among computer proficiency level, information literacy, internet using skills.
+
+Bi plots for showing the correlation among the skills. (computer proficiency level, information literacy, internet using)
+```{r}
+tab=prcomp(select(clean,computer_proficiency_level,internet_lkt,information_literacy_skills_lkt) %>% map_df(as.numeric)%>% scale())
+tab=tab$rotation[,1:2] %>% as.data.frame()
+tab$row=c("Computer proficiency","Internet skills","Information skills")
+ggplot()+ geom_path(data=tibble(PC1=c(seq(-1,1,.01),seq(1,-1,-.01)), PC2=c((1-seq(-1,1,.01)^2)^.5,-(1-seq(1,-1,-.01)^2)^.5)),aes(PC1,PC2),col="#618685")+geom_vline(xintercept = 0,col="#618685")+geom_hline(yintercept = 0,col="#618685")+theme_bw()+theme(legend.position = "none")+ geom_point(data=tab,aes(PC1,PC2,col=row))+geom_text(data=tab,aes(PC1,PC2,label=row,col=row),nudge_x = -.3)+xlim(c(-1,1))+ylim(c(-1,1))+coord_fixed(ratio = 1/1)+ scale_color_brewer(type = "qual")
+```
+From this plot we can see that information literacy skills and internet using skills are correlated with each other on the other hand computer proficiency level is reveling the behavior of independence from other two factor. Now we will test the significance of this correlation between information literacy skills vs internet skills.
+
+Spearman rank correlation test for "information literacy skills" vs "internet using skills".
+
+H0: There is no association between information literacy skills vs internet using skills.
+H1: The association is significant between information literacy skills vs internet using skills.
+
+software output:
+```{r}
+cor.test(clean$information_literacy_skills_lkt %>% as.numeric(),clean$internet_lkt %>% as.numeric(),method = "spearman",alternative = "greater",conf.level = .99)
+```
+
+Decision: As, p-value is less than .01 we may reject null hypothesis at at 99% confidence level.
+
+Now we need to check if computer proficiency level is independent or dependent on any of this two skills (information literacy skills, internet using skills).
+
+Spearman rank correlation test for "computer proficiency level" vs "internet using skills".
+
+H0: There is no association between computer proficiency level vs internet using skills.
+H1: The association is significant between computer proficiency level vs internet using skills.
+
+software output:
+```{r}
+cor.test(clean$computer_proficiency_level %>% as.numeric(),clean$internet_lkt %>% as.numeric(),method = "spearman",alternative = "greater",conf.level = .99)
+```
+
+Decision: As, p-value is less than .01 we may reject null hypothesis at at 99% confidence level.
+
+Spearman rank correlation test for "computer proficiency level" vs "information literacy skills".
+
+H0: There is no association between computer proficiency level vs information literacy skills.
+H1: The association is significant between computer proficiency level vs information literacy skills.
+
+software output:
+```{r}
+cor.test(clean$computer_proficiency_level %>% as.numeric(),clean$information_literacy_skills_lkt %>% as.numeric(),method = "spearman",alternative = "greater",conf.level = .99)
+```
+
+Decision: As, p-value is less than .01 we may reject null hypothesis at at 99% confidence level.
+
+Comment: There is a moderate amount (p=.54) linear association between information literacy skills and internet skills and for both of the variables there is a low linear association (p=19, p=.28 respectively) with computer proficiency level. So one who has a good skills at information literacy then it is more likely that he has a good skills at internet using and it is slightly likely that he has a good skills at computer proficiency.
+
+
+
